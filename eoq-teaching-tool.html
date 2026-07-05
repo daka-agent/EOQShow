@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EOQ 经济订货量模型 — 交互式教学工具</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#f5f5f5;color:#333;line-height:1.6}
+.app{max-width:960px;margin:0 auto;padding:16px}
+.header{text-align:center;padding:20px 0 12px;border-bottom:2px solid #e0e0e0;margin-bottom:16px}
+.header h1{font-size:22px;font-weight:600;color:#1a1a1a}
+.header p{font-size:13px;color:#888;margin-top:4px}
+.tabs{display:flex;gap:0;border-bottom:1px solid #ddd;margin-bottom:20px;background:#fff;border-radius:8px 8px 0 0;overflow:hidden}
+.tab{padding:10px 20px;font-size:14px;cursor:pointer;border:none;background:none;color:#666;transition:all .2s;flex:1;text-align:center;border-bottom:2px solid transparent}
+.tab:hover{color:#185FA5;background:#f8f8f8}
+.tab.active{color:#185FA5;font-weight:500;border-bottom:2px solid #185FA5;background:#eef4fb}
+.panel{display:none;background:#fff;border-radius:0 0 8px 8px;padding:20px;border:1px solid #ddd;border-top:none}
+.panel.active{display:block}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:20px}
+.ctrl-group{background:#fafafa;border-radius:8px;padding:12px;border:1px solid #eee}
+.ctrl-label{font-size:12px;color:#888;margin-bottom:6px;display:flex;justify-content:space-between}
+.ctrl-label span{font-weight:500;color:#333}
+.ctrl-row{display:flex;align-items:center;gap:8px}
+.ctrl-row input[type=range]{flex:1;height:6px;accent-color:#185FA5}
+.ctrl-row input[type=number]{width:80px;padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;text-align:right}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.metric{background:#fafafa;border-radius:8px;padding:12px;text-align:center;border:1px solid #eee}
+.metric .label{font-size:11px;color:#888;margin-bottom:2px}
+.metric .value{font-size:20px;font-weight:600;color:#185FA5}
+.metric .unit{font-size:12px;color:#888;font-weight:400}
+.chart-wrap{position:relative;width:100%;height:320px;margin-bottom:16px;border-radius:8px;background:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;font-size:12px;color:#888}
+.legend-item{display:flex;align-items:center;gap:4px}
+.legend-line{width:24px;height:3px;border-radius:2px;display:inline-block}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.formula-bar{background:#fafafa;border-radius:8px;padding:12px 16px;border:1px solid #eee;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+.formula-item{font-size:14px}
+.formula-item .fname{color:#888;font-size:12px}
+.formula-item .fval{font-weight:600;color:#185FA5;font-size:15px}
+.divider{width:1px;height:36px;background:#ddd}
+
+/* Discount module */
+.discount-config{margin-bottom:16px}
+.discount-config table{width:100%;border-collapse:collapse;margin-bottom:8px}
+.discount-config th{font-size:12px;color:#888;text-align:left;padding:6px 8px;border-bottom:1px solid #ddd}
+.discount-config td{padding:6px 8px}
+.discount-config input[type=number]{width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px}
+.discount-config .btn-row{display:flex;gap:8px;justify-content:flex-end}
+.btn{padding:6px 14px;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:13px;background:#fff;color:#666;transition:all .2s}
+.btn:hover{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn-primary{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn-primary:hover{background:#0C447C}
+.mode-switch{display:flex;gap:8px;margin-bottom:12px;align-items:center;font-size:13px}
+.mode-switch label{cursor:pointer;padding:6px 12px;border:1px solid #ddd;border-radius:4px;transition:all .2s}
+.mode-switch input:checked+label{background:#185FA5;color:#fff;border-color:#185FA5}
+.mode-switch input{display:none}
+.result-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+.result-table th{background:#eef4fb;color:#185FA5;font-weight:500;padding:8px;text-align:center;border:1px solid #ddd}
+.result-table td{padding:8px;text-align:center;border:1px solid #ddd}
+.result-table .best{background:#d4edda;font-weight:600;color:#0F6E56}
+.result-table .not-feasible{color:#999;background:#f9f9f9}
+
+@media(max-width:600px){
+  .controls{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .formula-bar{flex-direction:column;gap:8px}
+  .divider{display:none}
+  .chart-wrap{height:240px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>EOQ 经济订货量模型 — 交互式教学工具</h1>
+    <p>大卡 物流学 | 课堂演示 &amp; 学生自学</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-panel="classic">经典 EOQ</div>
+    <div class="tab" data-panel="discount">价格折扣 EOQ</div>
+    <div class="tab" data-panel="inventory">库存动态</div>
+    <div class="tab" data-panel="sensitivity">敏感性分析</div>
+  </div>
+
+  <!-- Panel 1: Classic EOQ -->
+  <div class="panel active" id="panel-classic">
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">年需求量 D <span id="d-val">1000</span> 件/年</div>
+        <div class="ctrl-row">
+          <input type="range" id="d-slider" min="100" max="10000" step="100" value="1000">
+          <input type="number" id="d-input" value="1000" min="1">
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">每次订货成本 S <span id="s-val">200</span> 元/次</div>
+        <div class="ctrl-row">
+          <input type="range" id="s-slider" min="10" max="5000" step="10" value="200">
+          <input type="number" id="s-input" value="200" min="1">
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">单位持有成本 H <span id="h-val">5</span> 元/件/年</div>
+        <div class="ctrl-row">
+          <input type="range" id="h-slider" min="1" max="100" step="1" value="5">
+          <input type="number" id="h-input" value="5" min="0.1">
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="label">最优订货量 EOQ</div><div class="value" id="eoq-val">283 <span class="unit">件</span></div></div>
+      <div class="metric"><div class="label">最低年度总成本</div><div class="value" id="tc-val">1414 <span class="unit">元/年</span></div></div>
+      <div class="metric"><div class="label">年度订货次数</div><div class="value" id="n-val">3.5 <span class="unit">次/年</span></div></div>
+      <div class="metric"><div class="label">订货周期</div><div class="value" id="cycle-val">103 <span class="unit">天</span></div></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="legend-line" style="background:#185FA5"></span>总成本 TC</span>
+      <span class="legend-item"><span class="legend-line" style="background:#0F6E56;border-top:2px dashed #0F6E56;background:none;height:0"></span>持有成本</span>
+      <span class="legend-item"><span class="legend-line" style="background:#993C1D;border-top:2px dashed #993C1D;background:none;height:0"></span>订货成本</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#D4537E"></span>EOQ 最优点</span>
+    </div>
+
+    <div class="chart-wrap"><canvas id="classicChart" aria-label="经典EOQ成本曲线图">经典EOQ成本曲线图</canvas></div>
+
+    <div class="formula-bar">
+      <div class="formula-item"><div class="fname">公式</div><div class="fval">EOQ = √(2DS / H)</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">持有成本</div><div class="fval">C<sub>h</sub> = (Q/2) × H</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">订货成本</div><div class="fval">C<sub>o</sub> = (D/Q) × S</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">总成本</div><div class="fval">TC = C<sub>h</sub> + C<sub>o</sub></div></div>
+    </div>
+  </div>
+
+  <!-- Panel 2: Discount EOQ -->
+  <div class="panel" id="panel-discount">
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">年需求量 D <span id="dd-val">10000</span> 件/年</div>
+        <div class="ctrl-row">
+          <input type="range" id="dd-slider" min="100" max="100000" step="100" value="10000">
+          <input type="number" id="dd-input" value="10000" min="1">
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">每次订货成本 S <span id="ds-val">100</span> 元/次</div>
+        <div class="ctrl-row">
+          <input type="range" id="ds-slider" min="10" max="5000" step="10" value="100">
+          <input type="number" id="ds-input" value="100" min="1">
+        </div>
+      </div>
+    </div>
+
+    <div class="mode-switch">
+      <span style="font-weight:500;margin-right:8px">持有成本模式：</span>
+      <input type="radio" name="hmode" id="hmode-rate" value="rate" checked>
+      <label for="hmode-rate">持有成本率 r × P（教材推荐）</label>
+      <input type="radio" name="hmode" id="hmode-fixed" value="fixed">
+      <label for="hmode-fixed">固定持有成本 H</label>
+    </div>
+
+    <div class="ctrl-group" id="rate-ctrl" style="margin-bottom:12px">
+      <div class="ctrl-label">持有成本率 r <span id="dr-val">0.20</span></div>
+      <div class="ctrl-row">
+        <input type="range" id="dr-slider" min="0.05" max="0.50" step="0.01" value="0.20">
+        <input type="number" id="dr-input" value="0.20" min="0.01" step="0.01" style="width:70px">
+      </div>
+    </div>
+    <div class="ctrl-group" id="fixed-ctrl" style="margin-bottom:12px;display:none">
+      <div class="ctrl-label">固定持有成本 H <span id="dhf-val">5</span> 元/件/年</div>
+      <div class="ctrl-row">
+        <input type="range" id="dhf-slider" min="1" max="100" step="1" value="5">
+        <input type="number" id="dhf-input" value="5" min="0.1" style="width:70px">
+      </div>
+    </div>
+
+    <div class="discount-config">
+      <table id="discount-table">
+        <thead>
+          <tr><th>区间序号</th><th>最低数量 Q<sub>min</sub></th><th>单价 P（元）</th></tr>
+        </thead>
+        <tbody id="discount-body">
+          <tr><td>1</td><td><input type="number" class="qmin" value="0" min="0"></td><td><input type="number" class="price" value="10" min="0.01" step="0.01"></td></tr>
+          <tr><td>2</td><td><input type="number" class="qmin" value="500" min="0"></td><td><input type="number" class="price" value="9.5" min="0.01" step="0.01"></td></tr>
+          <tr><td>3</td><td><input type="number" class="qmin" value="1000" min="0"></td><td><input type="number" class="price" value="9" min="0.01" step="0.01"></td></tr>
+        </tbody>
+      </table>
+      <div class="btn-row">
+        <button class="btn" id="add-row-btn">+ 添加区间</button>
+        <button class="btn" id="del-row-btn">- 删除末行</button>
+      </div>
+    </div>
+
+    <div class="metrics" id="disc-metrics">
+      <div class="metric"><div class="label">最优订货量</div><div class="value" id="disc-eoq-val">— <span class="unit">件</span></div></div>
+      <div class="metric"><div class="label">最优单价</div><div class="value" id="disc-price-val">— <span class="unit">元</span></div></div>
+      <div class="metric"><div class="label">最低年度总成本</div><div class="value" id="disc-tc-val">— <span class="unit">元/年</span></div></div>
+    </div>
+
+    <div class="legend" id="disc-legend"></div>
+    <div class="chart-wrap"><canvas id="discountChart" aria-label="全量折扣EOQ成本曲线图">全量折扣EOQ成本曲线图</canvas></div>
+
+    <div class="formula-bar">
+      <div class="formula-item"><div class="fname">总成本公式</div><div class="fval">TC = (Q/2)×H<sub>i</sub> + (D/Q)×S + D×P<sub>i</sub></div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">持有成本</div><div class="fval" id="disc-h-formula">H<sub>i</sub> = r × P<sub>i</sub></div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">求解步骤</div><div class="fval">各区间求EOQ → 判断可行性 → 比较总成本 → 选最低</div></div>
+    </div>
+
+    <h3 style="font-size:14px;font-weight:500;margin-top:16px;margin-bottom:8px;color:#185FA5">各区间可行性分析</h3>
+    <table class="result-table" id="result-table">
+      <thead>
+        <tr><th>区间</th><th>Q<sub>min</sub></th><th>单价 P</th><th>H<sub>i</sub></th><th>EOQ<sub>i</sub></th><th>可行 Q</th><th>年度总成本</th><th>判断</th></tr>
+      </thead>
+      <tbody id="result-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Panel 3: Inventory Dynamics (Sawtooth) -->
+  <div class="panel" id="panel-inventory">
+    <div class="info-banner" style="background:#eef4fb;border-radius:8px;padding:12px 16px;border:1px solid #b5d4f4;margin-bottom:16px;font-size:13px;color:#185FA5">
+      参数与<b>经典EOQ</b>同步。调节经典EOQ的滑块，切回此处可看到库存动态变化。
+    </div>
+
+    <div class="controls">
+      <div class="ctrl-group">
+        <div class="ctrl-label">提前期 L <span id="inv-l-val">5</span> 天</div>
+        <div class="ctrl-row">
+          <input type="range" id="inv-l-slider" min="0" max="30" step="1" value="5">
+          <input type="number" id="inv-l-input" value="5" min="0" style="width:60px">
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">显示周期数 <span id="inv-cycles-val">4</span> 个</div>
+        <div class="ctrl-row">
+          <input type="range" id="inv-cycles-slider" min="2" max="8" step="1" value="4">
+          <input type="number" id="inv-cycles-input" value="4" min="1" max="12" style="width:60px">
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="label">订货量 Q*</div><div class="value" id="inv-eoq-val">283 <span class="unit">件</span></div></div>
+      <div class="metric"><div class="label">平均库存</div><div class="value" id="inv-avg-val">141 <span class="unit">件</span></div></div>
+      <div class="metric"><div class="label">订货周期 T</div><div class="value" id="inv-cycle-val">103 <span class="unit">天</span></div></div>
+      <div class="metric"><div class="label">再订货点 ROP</div><div class="value" id="inv-rop-val">14 <span class="unit">件</span></div></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="legend-line" style="background:#185FA5"></span>库存水位</span>
+      <span class="legend-item"><span class="legend-line" style="background:#D4537E;border-top:2px dashed #D4537E;background:none;height:0"></span>再订货点 ROP</span>
+      <span class="legend-item"><span class="legend-line" style="background:#0F6E56;border-top:2px dashed #0F6E56;background:none;height:0"></span>平均库存 Q/2</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#EF9F27"></span>补货时点</span>
+    </div>
+
+    <div class="chart-wrap" style="height:340px"><canvas id="sawtoothChart" aria-label="库存锯齿图：库存水位随时间变化的锯齿波形">库存锯齿图</canvas></div>
+
+    <div class="formula-bar">
+      <div class="formula-item"><div class="fname">再订货点</div><div class="fval">ROP = (D/365) × L</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">平均库存</div><div class="fval">Q/2 = EOQ/2</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">订货周期</div><div class="fval">T = 365 / N = 365×EOQ/D</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">直觉</div><div class="fval">锯齿面积 = Q/2 × T</div></div>
+    </div>
+  </div>
+
+  <!-- Panel 4: Sensitivity Analysis -->
+  <div class="panel" id="panel-sensitivity">
+    <div class="info-banner" style="background:#eef4fb;border-radius:8px;padding:12px 16px;border:1px solid #b5d4f4;margin-bottom:16px;font-size:13px;color:#185FA5">
+      参数与<b>经典EOQ</b>同步。观察订货量偏离EOQ时，总成本的变化幅度。
+    </div>
+
+    <div class="metrics">
+      <div class="metric"><div class="label">EOQ 基准成本</div><div class="value" id="sen-base-val">1414 <span class="unit">元</span></div></div>
+      <div class="metric"><div class="label">偏离+20% 成本增幅</div><div class="value" id="sen-p20-val">+0.8 <span class="unit">%</span></div></div>
+      <div class="metric"><div class="label">偏离-20% 成本增幅</div><div class="value" id="sen-n20-val">+1.0 <span class="unit">%</span></div></div>
+      <div class="metric"><div class="label">偏离+40% 成本增幅</div><div class="value" id="sen-p40-val">+3.3 <span class="unit">%</span></div></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#185FA5;border-radius:2px;width:12px;height:12px"></span>总成本</span>
+      <span class="legend-item"><span class="legend-line" style="background:#D4537E"></span>EOQ 基准线</span>
+    </div>
+
+    <div class="chart-wrap" style="height:320px"><canvas id="sensitivityChart" aria-label="敏感性分析柱状图：订货量偏离EOQ时的总成本变化">敏感性分析图</canvas></div>
+
+    <div class="formula-bar">
+      <div class="formula-item"><div class="fname">关键直觉</div><div class="fval" style="font-size:14px">EOQ附近成本曲线"平坦"</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">平方根效应</div><div class="fval" style="font-size:14px">参数变化20% → EOQ仅变化约10%</div></div>
+      <div class="divider"></div>
+      <div class="formula-item"><div class="fname">教学含义</div><div class="fval" style="font-size:14px">参数估计不精确也能接受</div></div>
+    </div>
+
+    <h3 style="font-size:14px;font-weight:500;margin-top:16px;margin-bottom:8px;color:#185FA5">偏离明细表</h3>
+    <table class="result-table" id="sen-table">
+      <thead>
+        <tr><th>偏离比例</th><th>订货量 Q</th><th>持有成本</th><th>订货成本</th><th>总成本</th><th>成本增幅</th><th>增幅百分比</th></tr>
+      </thead>
+      <tbody id="sen-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ===== Tab switching =====
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+  });
+});
+
+// ===== Classic EOQ =====
+const classicChart = new Chart(document.getElementById('classicChart'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label:'总成本', data:[], borderColor:'#185FA5', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false },
+    { label:'持有成本', data:[], borderColor:'#0F6E56', borderWidth:1.5, borderDash:[5,4], pointRadius:0, tension:0.1, fill:false },
+    { label:'订货成本', data:[], borderColor:'#993C1D', borderWidth:1.5, borderDash:[5,4], pointRadius:0, tension:0.1, fill:false },
+    { label:'EOQ点', data:[], borderColor:'#D4537E', backgroundColor:'#D4537E', pointRadius:0, pointStyle:'circle', showLine:false }
+  ]},
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ title:c=>`Q = ${c[0].label}件`, label:c=>`${c.dataset.label}: ${Math.round(c.parsed.y)}元`}}},
+    scales:{
+      x:{ title:{display:true,text:'订货量 Q（件）',font:{size:12}}, grid:{color:'rgba(0,0,0,0.05)'} },
+      y:{ title:{display:true,text:'年度成本（元）',font:{size:12}}, grid:{color:'rgba(0,0,0,0.05)'} }
+    }
+  }
+});
+
+function syncSliderInput(sliderId, inputId, valId, isFloat, callback) {
+  const slider = document.getElementById(sliderId);
+  const input = document.getElementById(inputId);
+  const valSpan = document.getElementById(valId);
+  function update(v) {
+    v = isFloat ? parseFloat(v) : parseInt(v);
+    if (isNaN(v) || v < parseFloat(slider.min)) v = parseFloat(slider.min);
+    if (v > parseFloat(slider.max)) v = parseFloat(slider.max);
+    slider.value = v;
+    input.value = isFloat ? v.toFixed(2) : v;
+    valSpan.textContent = isFloat ? v.toFixed(2) : v;
+    if (callback) callback();
+  }
+  slider.addEventListener('input', () => update(slider.value));
+  input.addEventListener('change', () => update(input.value));
+}
+
+syncSliderInput('d-slider','d-input','d-val',false, updateClassicChart);
+syncSliderInput('s-slider','s-input','s-val',false, updateClassicChart);
+syncSliderInput('h-slider','h-input','h-val',false, updateClassicChart);
+
+function updateClassicChart() {
+  const D = parseInt(document.getElementById('d-slider').value);
+  const S = parseInt(document.getElementById('s-slider').value);
+  const H = parseFloat(document.getElementById('h-slider').value);
+  const eoq = Math.sqrt(2*D*S/H);
+  const tcMin = (eoq/2)*H + (D/eoq)*S;
+
+  document.getElementById('eoq-val').innerHTML = `${Math.round(eoq)} <span class="unit">件</span>`;
+  document.getElementById('tc-val').innerHTML = `${Math.round(tcMin)} <span class="unit">元/年</span>`;
+  document.getElementById('n-val').innerHTML = `${(D/eoq).toFixed(1)} <span class="unit">次/年</span>`;
+  document.getElementById('cycle-val').innerHTML = `${Math.round(365/(D/eoq))} <span class="unit">天</span>`;
+
+  const qMax = Math.max(Math.round(eoq*3), 200);
+  const labels=[],holding=[],ordering=[],total=[],eoqPts=[];
+  const startQ = Math.max(1, Math.round(eoq/5));
+  for(let q=startQ; q<=qMax; q+=Math.max(1,Math.round(qMax/60))){
+    labels.push(q);
+    const hc=(q/2)*H, oc=(D/q)*S;
+    holding.push(Math.round(hc)); ordering.push(Math.round(oc)); total.push(Math.round(hc+oc));
+    eoqPts.push(Math.abs(q-Math.round(eoq))<Math.max(2,qMax/120)? Math.round(hc+oc) : null);
+  }
+  // ensure EOQ point exists
+  const eoqR=Math.round(eoq);
+  if(!labels.includes(eoqR)){
+    labels.push(eoqR);
+    holding.push(Math.round((eoqR/2)*H));
+    ordering.push(Math.round((D/eoqR)*S));
+    total.push(Math.round((eoqR/2)*H+(D/eoqR)*S));
+    eoqPts.push(Math.round((eoqR/2)*H+(D/eoqR)*S));
+  }
+  // Sort labels and data by q for proper line drawing
+  const indices = labels.map((_,i)=>i).sort((a,b)=>labels[a]-labels[b]);
+  const sortedLabels = indices.map(i=>labels[i]);
+  const sortedTotal = indices.map(i=>total[i]);
+  const sortedHolding = indices.map(i=>holding[i]);
+  const sortedOrdering = indices.map(i=>ordering[i]);
+  const sortedEoqPts = indices.map(i=>eoqPts[i]);
+
+  classicChart.data.labels=sortedLabels;
+  classicChart.data.datasets[0].data=sortedTotal;
+  classicChart.data.datasets[1].data=sortedHolding;
+  classicChart.data.datasets[2].data=sortedOrdering;
+  classicChart.data.datasets[3].data=sortedEoqPts;
+  classicChart.data.datasets[3].pointRadius=sortedEoqPts.map(v=>v!==null?7:0);
+  classicChart.update('none');
+
+  if(typeof updateSawtooth === 'function') updateSawtooth();
+  if(typeof updateSensitivity === 'function') updateSensitivity();
+}
+
+// ===== Discount EOQ =====
+const discountChart = new Chart(document.getElementById('discountChart'), {
+  type:'line',
+  data:{labels:[],datasets:[]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ title:c=>`Q = ${c[0].label}件`, label:c=>`${c.dataset.label}: ${Math.round(c.parsed.y)}元`}}},
+    scales:{
+      x:{ title:{display:true,text:'订货量 Q（件）',font:{size:12}}, grid:{color:'rgba(0,0,0,0.05)'} },
+      y:{ title:{display:true,text:'持有 + 订货成本（元）',font:{size:12}}, grid:{color:'rgba(0,0,0,0.05)'} }
+    }
+  }
+});
+
+const discColors=['#185FA5','#0F6E56','#993C1D','#EF9F27','#D4537E'];
+const discDashes=[[],[5,4],[5,4],[3,3],[5,4]];
+
+syncSliderInput('dd-slider','dd-input','dd-val',false, updateDiscountChart);
+syncSliderInput('ds-slider','ds-input','ds-val',false, updateDiscountChart);
+syncSliderInput('dr-slider','dr-input','dr-val',true, updateDiscountChart);
+syncSliderInput('dhf-slider','dhf-input','dhf-val',false, updateDiscountChart);
+
+// Mode switch
+document.querySelectorAll('input[name=hmode]').forEach(r => {
+  r.addEventListener('change', () => {
+    const isRate = r.value === 'rate';
+    document.getElementById('rate-ctrl').style.display = isRate ? '' : 'none';
+    document.getElementById('fixed-ctrl').style.display = isRate ? 'none' : '';
+    document.getElementById('disc-h-formula').textContent = isRate ? 'H_i = r × P_i' : 'H_i = 固定值';
+    updateDiscountChart();
+  });
+});
+
+// Add/remove rows
+document.getElementById('add-row-btn').addEventListener('click', () => {
+  const body = document.getElementById('discount-body');
+  const rows = body.querySelectorAll('tr');
+  if(rows.length >= 5) return;
+  const idx = rows.length + 1;
+  const lastQmin = parseInt(rows[rows.length-1].querySelector('.qmin').value) || 0;
+  const lastPrice = parseFloat(rows[rows.length-1].querySelector('.price').value) || 10;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${idx}</td><td><input type="number" class="qmin" value="${lastQmin+500}" min="0"></td><td><input type="number" class="price" value="${(lastPrice-0.5).toFixed(2)}" min="0.01" step="0.01"></td>`;
+  body.appendChild(tr);
+  tr.querySelectorAll('input').forEach(inp => inp.addEventListener('change', updateDiscountChart));
+  updateDiscountChart();
+});
+
+document.getElementById('del-row-btn').addEventListener('click', () => {
+  const body = document.getElementById('discount-body');
+  const rows = body.querySelectorAll('tr');
+  if(rows.length <= 2) return;
+  body.removeChild(rows[rows.length-1]);
+  updateDiscountChart();
+});
+
+// Listen to discount input changes
+document.querySelectorAll('#discount-body input').forEach(inp => {
+  inp.addEventListener('change', updateDiscountChart);
+});
+
+function updateDiscountChart() {
+  const D = parseInt(document.getElementById('dd-slider').value);
+  const S = parseInt(document.getElementById('ds-slider').value);
+  const hmode = document.querySelector('input[name=hmode]:checked').value;
+  const r = parseFloat(document.getElementById('dr-slider').value);
+  const Hfixed = parseFloat(document.getElementById('dhf-slider').value);
+
+  // Gather discount tiers
+  const rows = document.querySelectorAll('#discount-body tr');
+  const tiers = [];
+  rows.forEach((tr, i) => {
+    const qmin = parseFloat(tr.querySelector('.qmin').value) || 0;
+    const price = parseFloat(tr.querySelector('.price').value) || 0;
+    tiers.push({ idx:i+1, qmin, price });
+  });
+  // Derive qmax for each tier
+  for(let i=0;i<tiers.length;i++){
+    tiers[i].qmax = (i < tiers.length-1) ? tiers[i+1].qmin - 1 : Infinity;
+  }
+
+  // Compute for each tier
+  const maxQmin = tiers.length > 1 ? (tiers[tiers.length-1].qmin || 1000) : 1000;
+  const qMaxPlot = maxQmin * 3;
+  const step = Math.max(1, Math.round(qMaxPlot/80));
+  const startQ = Math.max(1, Math.round(qMaxPlot/20));
+  const labels = [];
+  for(let q=startQ; q<=qMaxPlot; q+=step) labels.push(q);
+
+  const datasets = [];
+  const feasibleResults = [];
+
+  tiers.forEach((tier, i) => {
+    const Hi = hmode==='rate' ? r * tier.price : Hfixed;
+    const eoqI = Math.sqrt(2*D*S/Hi);
+    let feasibleQ = null;
+    let tcFeasible = null;
+    let status = '';
+
+    if(eoqI >= tier.qmin && eoqI <= tier.qmax) {
+      feasibleQ = eoqI;
+      tcFeasible = (eoqI/2)*Hi + (D/eoqI)*S + D*tier.price;
+      status = 'EOQ可行';
+    } else if(eoqI < tier.qmin) {
+      feasibleQ = tier.qmin;
+      tcFeasible = (tier.qmin/2)*Hi + (D/tier.qmin)*S + D*tier.price;
+      status = '取边界Q_min';
+    } else {
+      feasibleQ = null;
+      tcFeasible = null;
+      status = '不可行';
+    }
+
+    feasibleResults.push({ ...tier, Hi, eoqI, feasibleQ, tcFeasible, status });
+
+    // Build curve data: only draw in this tier's range; use relative cost for visibility
+    const data = labels.map(q => {
+      if(q >= tier.qmin && q <= (tier.qmax === Infinity ? qMaxPlot : tier.qmax)) {
+        const hc = (q/2)*Hi, oc = (D/q)*S;
+        return Math.round(hc + oc);
+      }
+      return null;
+    });
+    datasets.push({
+      label: `区间${i+1} TC (P=${tier.price})`,
+      data,
+      borderColor: discColors[i],
+      borderWidth: 2,
+      borderDash: discDashes[i],
+      pointRadius: 0,
+      tension: 0.2,
+      fill: false,
+      spanGaps: false
+    });
+  });
+
+  // Mark best point on relative cost curve
+  const best = feasibleResults.filter(r=>r.tcFeasible!==null).reduce((min,r)=>r.tcFeasible<min.tcFeasible?r:min, {tcFeasible:Infinity});
+  if(best.feasibleQ) {
+    const bestQ = Math.round(best.feasibleQ);
+    const bestData = labels.map((q, idx) => Math.abs(q-bestQ)<step ? datasets.find(d => d.data[idx] !== null)?.data[idx] : null);
+    datasets.push({
+      label:'最优解',
+      data: bestData,
+      borderColor:'#D4537E', backgroundColor:'#D4537E',
+      pointRadius: bestData.map(v=>v!==null?8:0),
+      pointStyle:'circle', showLine:false
+    });
+  }
+
+  // Update metrics
+  if(best.feasibleQ) {
+    document.getElementById('disc-eoq-val').innerHTML = `${Math.round(best.feasibleQ)} <span class="unit">件</span>`;
+    document.getElementById('disc-price-val').innerHTML = `${best.price.toFixed(2)} <span class="unit">元</span>`;
+    document.getElementById('disc-tc-val').innerHTML = `${Math.round(best.tcFeasible)} <span class="unit">元/年</span>`;
+  } else {
+    document.getElementById('disc-eoq-val').innerHTML = '—';
+    document.getElementById('disc-price-val').innerHTML = '—';
+    document.getElementById('disc-tc-val').innerHTML = '—';
+  }
+
+  // Update legend
+  const legendDiv = document.getElementById('disc-legend');
+  legendDiv.innerHTML = tiers.map((t,i) =>
+    `<span class="legend-item"><span class="legend-line" style="background:${discColors[i]};${discDashes[i].length?'border-top:2px dashed '+discColors[i]+';background:none;height:0':''}"></span>区间${i+1} (P=${t.price}元)</span>`
+  ).join('') + `<span class="legend-item"><span class="legend-dot" style="background:#D4537E"></span>最优解</span>`;
+
+  // Update chart
+  discountChart.data.labels = labels;
+  discountChart.data.datasets = datasets;
+  discountChart.update('none');
+
+  // Update result table
+  const tbody = document.getElementById('result-body');
+  tbody.innerHTML = feasibleResults.map(r => {
+    const isBest = r.tcFeasible !== null && r === best;
+    const cls = r.status==='不可行' ? 'not-feasible' : (isBest?'best':'');
+    return `<tr class="${cls}">
+      <td>${r.idx}</td>
+      <td>${r.qmin}</td>
+      <td>${r.price.toFixed(2)}</td>
+      <td>${r.Hi.toFixed(2)}</td>
+      <td>${Math.round(r.eoqI)}</td>
+      <td>${r.feasibleQ ? Math.round(r.feasibleQ) : '—'}</td>
+      <td>${r.tcFeasible ? Math.round(r.tcFeasible) : '—'}</td>
+      <td>${r.status}${isBest?' ✓':''}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== Inventory Sawtooth =====
+const sawtoothChart = new Chart(document.getElementById('sawtoothChart'), {
+  type:'line',
+  data:{labels:[],datasets:[
+    { label:'库存水位', data:[], borderColor:'#185FA5', borderWidth:2, pointRadius:0, tension:0, fill:{target:'origin',above:'rgba(24,95,165,0.08)'} },
+    { label:'ROP', data:[], borderColor:'#D4537E', borderWidth:1.5, borderDash:[6,4], pointRadius:0, fill:false },
+    { label:'平均库存', data:[], borderColor:'#0F6E56', borderWidth:1.5, borderDash:[4,3], pointRadius:0, fill:false },
+    { label:'补货时点', data:[], borderColor:'#EF9F27', backgroundColor:'#EF9F27', pointRadius:0, pointStyle:'rectRot', showLine:false }
+  ]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{ title:c=>`第 ${Math.ceil(c[0].dataIndex/2)} 周期`, label:c=>`库存: ${Math.round(c.parsed.y)} 件`}}},
+    scales:{
+      x:{ title:{display:true,text:'时间（天）',font:{size:12}}, grid:{color:'rgba(0,0,0,0.05)'} },
+      y:{ title:{display:true,text:'库存量（件）',font:{size:12}}, grid:{color:'rgba(0,0,0,0.05)'}, min:0 }
+    }
+  }
+});
+
+syncSliderInput('inv-l-slider','inv-l-input','inv-l-val',false, updateSawtooth);
+syncSliderInput('inv-cycles-slider','inv-cycles-input','inv-cycles-val',false, updateSawtooth);
+
+function updateSawtooth() {
+  const D = parseInt(document.getElementById('d-slider').value);
+  const S = parseInt(document.getElementById('s-slider').value);
+  const H = parseFloat(document.getElementById('h-slider').value);
+  const L = parseInt(document.getElementById('inv-l-slider').value);
+  const cycles = parseInt(document.getElementById('inv-cycles-slider').value);
+
+  const eoq = Math.sqrt(2*D*S/H);
+  const N = D/eoq;
+  const T = 365/N;
+  const rop = (D/365)*L;
+  const avgInv = eoq/2;
+
+  document.getElementById('inv-eoq-val').innerHTML = `${Math.round(eoq)} <span class="unit">件</span>`;
+  document.getElementById('inv-avg-val').innerHTML = `${Math.round(avgInv)} <span class="unit">件</span>`;
+  document.getElementById('inv-cycle-val').innerHTML = `${Math.round(T)} <span class="unit">天</span>`;
+  document.getElementById('inv-rop-val').innerHTML = `${Math.round(rop)} <span class="unit">件</span>`;
+
+  const labels=[], inventory=[], ropLine=[], avgLine=[], reorderPts=[];
+  const totalDays = Math.round(T*cycles);
+  for(let day=0; day<=totalDays; day++){
+    labels.push(day);
+    const cyclePos = day % T;
+    const inv = eoq - (eoq/T)*cyclePos;
+    inventory.push(Math.max(0, Math.round(inv)));
+    ropLine.push(Math.round(rop));
+    avgLine.push(Math.round(avgInv));
+    // Mark peak inventory (right after replenishment) as the replenishment point
+    reorderPts.push(cyclePos < 0.5 ? Math.round(inv) : null);
+  }
+
+  sawtoothChart.data.labels = labels;
+  sawtoothChart.data.datasets[0].data = inventory;
+  sawtoothChart.data.datasets[1].data = ropLine;
+  sawtoothChart.data.datasets[2].data = avgLine;
+  sawtoothChart.data.datasets[3].data = reorderPts.map(v=>v!==null?v:null);
+  sawtoothChart.data.datasets[3].pointRadius = reorderPts.map(v=>v!==null?6:0);
+  sawtoothChart.update('none');
+}
+
+// ===== Sensitivity Analysis =====
+const sensitivityChart = new Chart(document.getElementById('sensitivityChart'), {
+  type:'bar',
+  data:{labels:[],datasets:[{
+    label:'总成本', data:[],
+    backgroundColor: ctx => {
+      const colors = ['#B5D4F4','#85B7EB','#185FA5','#85B7EB','#B5D4F4'];
+      return colors[ctx.dataIndex] || '#B5D4F4';
+    },
+    borderRadius:4, barPercentage:0.7
+  }]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{ callbacks:{ title:c=>`订货量 Q = ${c[0].label}件`, label:c=>`总成本: ${Math.round(c.parsed.y)}元`}}
+    },
+    scales:{
+      x:{ title:{display:true,text:'订货量（件）',font:{size:12}}, grid:{display:false} },
+      y:{ title:{display:true,text:'年度总成本（元）',font:{size:12}}, grid:{color:'rgba(0,0,0,0.05)'} }
+    }
+  }
+});
+
+function updateSensitivity() {
+  const D = parseInt(document.getElementById('d-slider').value);
+  const S = parseInt(document.getElementById('s-slider').value);
+  const H = parseFloat(document.getElementById('h-slider').value);
+  const eoq = Math.sqrt(2*D*S/H);
+  const baseTC = (eoq/2)*H + (D/eoq)*S;
+
+  document.getElementById('sen-base-val').innerHTML = `${Math.round(baseTC)} <span class="unit">元</span>`;
+
+  const offsets = [-0.4,-0.2,0,0.2,0.4];
+  const labels=[], costs=[], holdingArr=[], orderingArr=[], deltas=[], pctArr=[];
+  offsets.forEach(off => {
+    const q = Math.round(eoq*(1+off));
+    const hc = (q/2)*H;
+    const oc = (D/q)*S;
+    const tc = hc+oc;
+    const delta = tc - baseTC;
+    const pct = (delta/baseTC)*100;
+    labels.push(q);
+    costs.push(Math.round(tc));
+    holdingArr.push(Math.round(hc));
+    orderingArr.push(Math.round(oc));
+    deltas.push(Math.round(delta));
+    pctArr.push(pct);
+  });
+
+  document.getElementById('sen-p20-val').innerHTML = `${pctArr[3].toFixed(1)} <span class="unit">%</span>`;
+  document.getElementById('sen-n20-val').innerHTML = `${pctArr[1].toFixed(1)} <span class="unit">%</span>`;
+  document.getElementById('sen-p40-val').innerHTML = `${pctArr[4].toFixed(1)} <span class="unit">%</span>`;
+
+  sensitivityChart.data.labels = labels;
+  sensitivityChart.data.datasets[0].data = costs;
+  sensitivityChart.update('none');
+
+  const offsetLabels = ['-40%','-20%','EOQ','+20%','+40%'];
+  const tbody = document.getElementById('sen-body');
+  tbody.innerHTML = offsets.map((off,i) => {
+    const isBase = off === 0;
+    return `<tr class="${isBase?'best':''}">
+      <td>${offsetLabels[i]}</td>
+      <td>${labels[i]}</td>
+      <td>${holdingArr[i]}</td>
+      <td>${orderingArr[i]}</td>
+      <td>${costs[i]}</td>
+      <td>${isBase?'—':'+'+deltas[i]}</td>
+      <td>${isBase?'—':(pctArr[i]>0?'+':'')+pctArr[i].toFixed(2)+'%'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== Initial render — must run AFTER all Chart instances are created =====
+// updateClassicChart() internally calls updateSawtooth() and updateSensitivity()
+updateDiscountChart();
+updateClassicChart();
+
+// ===== Tab switching: ensure hidden charts render correctly =====
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const panelId = 'panel-' + tab.dataset.panel;
+    requestAnimationFrame(() => {
+      if(panelId === 'panel-classic') classicChart.resize();
+      if(panelId === 'panel-discount') discountChart.resize();
+      if(panelId === 'panel-inventory') sawtoothChart.resize();
+      if(panelId === 'panel-sensitivity') sensitivityChart.resize();
+    });
+  });
+});
+</script>
+</body>
+</html>
