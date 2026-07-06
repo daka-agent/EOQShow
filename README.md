@@ -43,7 +43,8 @@ python -m http.server 8080
 
 ## 在线预览
 
-> 计划通过 GitHub Pages / AtomGit Pages 部署。部署后在此处填写地址。
+- **GitHub Pages**：https://daka-agent.github.io/EOQShow/
+- **AtomGit**：https://atomgit.com/dakazhang/EOQShow
 
 ---
 
@@ -157,6 +158,7 @@ python -m http.server 8080
 ```text
 EOQ/
 ├── eoq-teaching-tool.html    # 主程序（单文件）
+├── index.html                # GitHub Pages 入口（自动跳转至主程序）
 ├── assets/                   # 截图资源
 │   ├── classic-eoq.png
 │   ├── discount-eoq.png
