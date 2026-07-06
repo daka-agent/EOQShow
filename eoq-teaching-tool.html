@@ -494,18 +494,8 @@ function updateDiscountChart() {
     tiers[i].qmax = (i < tiers.length-1) ? tiers[i+1].qmin - 1 : Infinity;
   }
 
-  // Compute for each tier
-  const maxQmin = tiers.length > 1 ? (tiers[tiers.length-1].qmin || 1000) : 1000;
-  const qMaxPlot = maxQmin * 3;
-  const step = Math.max(1, Math.round(qMaxPlot/80));
-  const startQ = Math.max(1, Math.round(qMaxPlot/20));
-  const labels = [];
-  for(let q=startQ; q<=qMaxPlot; q+=step) labels.push(q);
-
-  const datasets = [];
-  const feasibleResults = [];
-
-  tiers.forEach((tier, i) => {
+  // Compute feasible results for each tier (first pass)
+  const feasibleResults = tiers.map(tier => {
     const Hi = hmode==='rate' ? r * tier.price : Hfixed;
     const eoqI = Math.sqrt(2*D*S/Hi);
     let feasibleQ = null;
@@ -525,10 +515,31 @@ function updateDiscountChart() {
       tcFeasible = null;
       status = '不可行';
     }
+    return { ...tier, Hi, eoqI, feasibleQ, tcFeasible, status };
+  });
 
-    feasibleResults.push({ ...tier, Hi, eoqI, feasibleQ, tcFeasible, status });
+  // Determine best feasible solution
+  const best = feasibleResults.filter(r=>r.tcFeasible!==null).reduce((min,r)=>r.tcFeasible<min.tcFeasible?r:min, {tcFeasible:Infinity});
 
-    // Build curve data: only draw in this tier's range; use relative cost for visibility
+  // Build labels: regular grid + best Q + tier boundaries (so the optimal point sits exactly on its curve)
+  const maxQmin = tiers.length > 1 ? (tiers[tiers.length-1].qmin || 1000) : 1000;
+  const qMaxPlot = maxQmin * 3;
+  const step = Math.max(1, Math.round(qMaxPlot/80));
+  const startQ = Math.max(1, Math.round(qMaxPlot/20));
+  const labels = [];
+  for(let q=startQ; q<=qMaxPlot; q+=step) labels.push(q);
+  if(best.feasibleQ) {
+    const bestQ = Math.round(best.feasibleQ);
+    if(!labels.includes(bestQ)) labels.push(bestQ);
+  }
+  tiers.forEach(t => {
+    if(t.qmin >= startQ && !labels.includes(t.qmin)) labels.push(t.qmin);
+  });
+  labels.sort((a,b)=>a-b);
+
+  // Build curve datasets (second pass)
+  const datasets = tiers.map((tier, i) => {
+    const Hi = hmode==='rate' ? r * tier.price : Hfixed;
     const data = labels.map(q => {
       if(q >= tier.qmin && q <= (tier.qmax === Infinity ? qMaxPlot : tier.qmax)) {
         const hc = (q/2)*Hi, oc = (D/q)*S;
@@ -536,7 +547,7 @@ function updateDiscountChart() {
       }
       return null;
     });
-    datasets.push({
+    return {
       label: `区间${i+1} TC (P=${tier.price})`,
       data,
       borderColor: discColors[i],
@@ -546,19 +557,23 @@ function updateDiscountChart() {
       tension: 0.2,
       fill: false,
       spanGaps: false
-    });
+    };
   });
 
-  // Mark best point on relative cost curve
-  const best = feasibleResults.filter(r=>r.tcFeasible!==null).reduce((min,r)=>r.tcFeasible<min.tcFeasible?r:min, {tcFeasible:Infinity});
+  // Mark single best point on its own tier's curve
   if(best.feasibleQ) {
     const bestQ = Math.round(best.feasibleQ);
-    const bestData = labels.map((q, idx) => Math.abs(q-bestQ)<step ? datasets.find(d => d.data[idx] !== null)?.data[idx] : null);
+    const bestIdx = labels.indexOf(bestQ);
+    const bestHi = hmode==='rate' ? r * best.price : Hfixed;
+    const bestData = labels.map(() => null);
+    if(bestIdx >= 0) {
+      bestData[bestIdx] = Math.round((bestQ/2)*bestHi + (D/bestQ)*S);
+    }
     datasets.push({
       label:'最优解',
       data: bestData,
       borderColor:'#D4537E', backgroundColor:'#D4537E',
-      pointRadius: bestData.map(v=>v!==null?8:0),
+      pointRadius: labels.map((_, i) => i === bestIdx ? 8 : 0),
       pointStyle:'circle', showLine:false
     });
   }
