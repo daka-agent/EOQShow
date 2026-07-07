@@ -1,7 +1,7 @@
 # EOQ 经济订货量模型 — 交互式教学工具
 
 > 单文件 HTML + Chart.js，零构建、零安装，打开即用。
-> 专为物流学课堂演示与学生自学设计。
+> 大卡《物流学》| 课堂演示&动手实践。
 
 ---
 
@@ -44,7 +44,8 @@ python -m http.server 8080
 ## 在线预览
 
 - **GitHub Pages**：https://daka-agent.github.io/EOQShow/
-- **AtomGit**：https://atomgit.com/dakazhang/EOQShow
+
+> 也可下载 `eoq-teaching-tool.html` 本地打开，无需联网（Chart.js 需 CDN，离线时需替换为本地文件）。
 
 ---
 
@@ -96,7 +97,7 @@ python -m http.server 8080
 |------|------|--------|------|
 | `D` | 年需求量（件/年） | 1000 | 100 ~ 10,000 |
 | `S` | 每次订货成本（元/次） | 200 | 10 ~ 5,000 |
-| `H` | 单位持有成本（元/件/年） | 5 | 1 ~ 100 |
+| `H` | 单位持有成本（元/件/年） | 5 | 1 ~ 500 |
 
 ### 价格折扣 EOQ 面板
 
@@ -105,7 +106,7 @@ python -m http.server 8080
 | `D` | 年需求量（件/年） | 10,000 | 100 ~ 100,000 |
 | `S` | 每次订货成本（元/次） | 100 | 10 ~ 5,000 |
 | `r` | 持有成本率 | 0.20 | 0.05 ~ 0.50 |
-| `H` | 固定持有成本 | 5 | 1 ~ 100 |
+| `H` | 固定持有成本 | 5 | 1 ~ 500 |
 | 折扣区间 | 起订量 `Qmin` 与 单价 `P` | 见表格 | 2 ~ 5 个区间 |
 
 ### 库存动态面板
@@ -165,18 +166,19 @@ EOQ/
 │   ├── inventory-sawtooth.png
 │   └── sensitivity-analysis.png
 ├── test_calculations.js      # 计算逻辑验证脚本
+├── LICENSE                   # MIT 许可证
 ├── .gitignore                # Git 忽略规则
 └── README.md                 # 本文件
 ```
 
 ---
 
-## 开发路线图
+## 仓库地址
 
-- [x] 阶段一：经典 EOQ + 全量价格折扣 EOQ
-- [x] 阶段二：库存锯齿图 + 敏感性分析
-- [ ] 阶段三：习题练习模式 + 增量折扣扩展
-- [ ] 阶段四：导出/打印讲义、移动端手势优化
+| 平台 | 地址 |
+|------|------|
+| GitHub | https://github.com/daka-agent/EOQShow |
+| AtomGit | https://atomgit.com/dakazhang/EOQShow |
 
 ---
 
@@ -191,7 +193,6 @@ EOQ/
 ## 关于作者
 
 - **作者**：大卡（高校物流学教师）
-- **GitHub**：[@daka-agent](https://github.com/daka-agent)
 - **用途**：物流学课堂教学与学生自学
 
 ---
